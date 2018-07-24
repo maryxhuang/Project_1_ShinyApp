@@ -5,28 +5,25 @@ shinyServer(function(input, output){
   overview_tot_data <- ushr %>% 
     group_by(., Year) %>% 
     summarise(., incidence = n())
-  output$overall <- renderGvis({
-    gvisLineChart(overview_tot_data, xvar = 'Year', yvar = 'incidence', 
-                  options = list(width = 400, height = 200, 
-                                 title = 'Total Number of Incidents',
-                                 series = "[{color:'red'}]",
-                                 vAxes = "[{format:'#,###'}]", 
-                                 hAxes = "[{title:'Year', textPosition:'out', format:'####', sep:''}]", 
-                                 legend = "none"))
-  })
+  output$overall <- renderPlot({
+    ggplot(data = overview_tot_data, aes(x = Year)) + 
+      geom_line(aes(y = incidence), color = "red", size = 1) + xlab('Year') + 
+      ggtitle('Total Number of Incidents') + theme_bw() + scale_y_continuous(labels = scales::comma)
+  }, width = 500, height = 300)
+  
   state_top10_data <- ushr %>% 
     group_by(., State) %>% 
-    summarise(., incidence = n()) %>% 
-    arrange(., desc(incidence)) %>% 
+    summarise(., incidence = n(), 
+              solved = sum(Crime.Solved=="Yes"), unsolved = sum(Crime.Solved=="No")) %>% 
     top_n(10)
-  output$state_top10 <- renderGvis({
-    gvisBarChart(state_top10_data, xvar = 'State', yvar = 'incidence',  
-                 options = list(width = 400, height = 400, 
-                                title = 'Top 10 States', 
-                                vAxes = "[{showTextEvery:1, slantedText:true}]", 
-                                hAxes = "[{title:'Number of Incidence', textPosition:'out', format:'#,###'}]", 
-                                legend = "none"))
-  })
+  
+  output$state_top10 <- renderPlot({
+    ggplot(data = state_top10_data, aes(x = reorder(State, incidence))) + 
+      geom_bar(aes(x = reorder(State, incidence), y = incidence), fill = "#00BFC4", color = "lightblue4", stat = "identity", alpha = 0.2) + 
+      geom_bar(aes(x = reorder(State, incidence), y = unsolved), fill = "#F8766D", color = "red", stat = "identity", alpha = 0.6) + 
+      ggtitle("Top 10 States") + coord_flip() +
+      ylab("Number of Incidence") + scale_y_continuous(labels = scales::comma, limits = c(0, 110000))
+  }, width = 500, height = 300) 
   
   
   
@@ -51,13 +48,12 @@ shinyServer(function(input, output){
   age_all_data <- na.omit(age_all_data)
   
   output$age_all_line <- renderPlot({
-    p <- ggplot(data = age_all_data, aes(x = Age)) + 
+    ggplot(data = age_all_data, aes(x = Age)) + 
       geom_line(aes(y = age_per_count, color = 'age_per_count'), size = 1) + 
       geom_line(aes(y = age_vic_count, color = 'age_vic_count'), size = 1) + 
       ggtitle('Age Distributions (all years)') + theme(legend.title = element_blank()) + xlab('Age') + ylab('Total Numbers') + scale_y_continuous(labels = scales::comma) +
       scale_colour_manual("", values=c("#F8766D","#00BFC4"), breaks=c('age_per_count', 'age_vic_count'), labels=c('Perpetrator', 'Victim'))
-    print(p)
-  }, width = 400, height = 200)
+  }, width = 400, height = 300)
   output$age_all_stat1 <- renderTable({
     age_all_data %>% 
       summarise(., Mean.Per.Age = weighted.mean(Age, age_per_count), 
@@ -107,7 +103,7 @@ shinyServer(function(input, output){
       geom_line(aes(y = age_vic_count, color = 'age_vic_count'), size = 1) + 
       ggtitle('Age Distributions') + theme(legend.title = element_blank()) + xlab('Age') + ylab('Total Numbers') + scale_y_continuous(labels = scales::comma) +
       scale_colour_manual("", values=c("#F8766D","#00BFC4"), breaks=c('age_per_count', 'age_vic_count'), labels=c('Perpetrator', 'Victim'))
-  }, width = 400, height = 200)
+  }, width = 400, height = 300)
   
   output$age_spe_stat1 <- renderTable({
     age_year_info() %>% 
@@ -129,20 +125,21 @@ shinyServer(function(input, output){
   
   output$sex_all_pie <- renderPlot({
     solved_cases() %>%
-    select(., Perpetrator.Sex, Victim.Sex) %>% 
-    filter(., Perpetrator.Sex != "Unknown" & Victim.Sex != "Unknown") %>% 
-    mutate(., Incident = ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Male", 'Male.killed.Male', 
-                                ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Female", 'Male.killed.Female', 
-                                       ifelse(Perpetrator.Sex == "Female" & Victim.Sex == "Male", 'Female.killed.Male', 
-                                              'Female.killed.Female')))) %>% 
-    group_by(., Incident) %>%
-    summarise(., Count = n()) %>% 
-    mutate(., Percentage = Count/sum(Count)) %>% 
-    arrange(., desc(Percentage)) %>% 
-    ggplot(aes(x = 1, y = Percentage)) +
-      geom_bar(aes(fill = Incident), position = 'fill', stat = "identity") + 
-      coord_polar(theta = 'y') + 
-      geom_text(aes(label = round(Percentage*100, digits = 1)), position = position_stack(vjust = 0.5))
+      select(., Perpetrator.Sex, Victim.Sex) %>% 
+      filter(., Perpetrator.Sex != "Unknown" & Victim.Sex != "Unknown") %>% 
+      mutate(., Incident = ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Male", 'A. Male.killed.Male', 
+                                ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Female", 'B. Male.killed.Female', 
+                                       ifelse(Perpetrator.Sex == "Female" & Victim.Sex == "Male", 'C. Female.killed.Male', 
+                                              'D. Female.killed.Female')))) %>% 
+      group_by(., Incident) %>%
+      summarise(., Count = n()) %>% 
+      mutate(., Percentage = Count/sum(Count)) %>% 
+      arrange(., desc(Percentage)) %>% 
+      ggplot(aes(x = 1, y = Percentage)) +
+      geom_bar(aes(fill = Incident), position = "fill", stat = "identity") + 
+      coord_polar(theta = 'y') + ggtitle("Overall Gender Info of Perpetrators and Victims") +
+      geom_text(aes(label = round(Percentage*100, digits = 1)), position = position_stack(vjust = 0.5)) + 
+      scale_fill_brewer(palette = 'Set2')
   }, width = 500, height = 300)
   
   
@@ -151,18 +148,19 @@ shinyServer(function(input, output){
       filter(., Year == input$year_selected) %>%
       select(., Perpetrator.Sex, Victim.Sex) %>% 
       filter(., Perpetrator.Sex != "Unknown" & Victim.Sex != "Unknown") %>% 
-      mutate(., Incident = ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Male", 'Male.killed.Male', 
-                                  ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Female", 'Male.killed.Female', 
-                                         ifelse(Perpetrator.Sex == "Female" & Victim.Sex == "Male", 'Female.killed.Male', 
-                                                'Female.killed.Female')))) %>% 
+      mutate(., Incident = ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Male", 'A. Male.killed.Male', 
+                                  ifelse(Perpetrator.Sex == "Male" & Victim.Sex == "Female", 'B. Male.killed.Female', 
+                                         ifelse(Perpetrator.Sex == "Female" & Victim.Sex == "Male", 'C. Female.killed.Male', 
+                                                'D. Female.killed.Female')))) %>% 
       group_by(., Incident) %>%
       summarise(., Count = n()) %>% 
       mutate(., Percentage = Count/sum(Count)) %>% 
       arrange(., desc(Percentage)) %>% 
       ggplot(aes(x = 1, y = Percentage)) +
       geom_bar(aes(fill = Incident), position = 'fill', stat = "identity") + 
-      coord_polar(theta = 'y') + 
-      geom_text(aes(label = round(Percentage*100, digits = 1)), position = position_stack(vjust = 0.5))
+      coord_polar(theta = 'y') + ggtitle("Specific Year Gender Info of Perpetrators and Victims") +
+      geom_text(aes(label = round(Percentage*100, digits = 1)), position = position_stack(vjust = 0.5)) + 
+      scale_fill_brewer(palette = 'Set2')
   }, width = 500, height = 300)
   
   
@@ -184,9 +182,9 @@ shinyServer(function(input, output){
   output$wp_all_fillperc <- renderPlot({
     weapon_all_data() %>% 
       group_by(., Year, Weapon.Type) %>% 
-      summarise(., Incidence = n()) %>%
-      ggplot(aes(x = Year, y = Incidence, group = Weapon.Type, fill = Weapon.Type)) +
-      geom_area(position = 'fill') +
+      summarise(., Weapon.Portion = n()) %>%
+      ggplot(aes(x = Year, y = Weapon.Portion, group = Weapon.Type, fill = Weapon.Type)) +
+      geom_area(position = 'fill') + ggtitle("Overall Weapon Use") +
       scale_fill_brewer(palette = 'Spectral')
   }, width = 500)
   
@@ -209,9 +207,9 @@ shinyServer(function(input, output){
   output$wp_spe_fillperc <- renderPlot({
     weapon_spe_data() %>% 
       group_by(., Year, Weapon.Type) %>% 
-      summarise(., Incidence = n()) %>%
-      ggplot(aes(x = Year, y = Incidence, group = Weapon.Type, fill = Weapon.Type)) +
-      geom_area(position = 'fill') +
+      summarise(., Weapon.Portion = n()) %>%
+      ggplot(aes(x = Year, y = Weapon.Portion, group = Weapon.Type, fill = Weapon.Type)) +
+      geom_area(position = 'fill') + ggtitle("Weapon Use of Specific Age and Sex Groups") +
       scale_fill_brewer(palette = 'Spectral')
   }, width = 500)
   
@@ -258,6 +256,8 @@ shinyServer(function(input, output){
                                                                ifelse(Victim == "Friend", "Friend", 
                                                                       ifelse(Victim == "Family", "Family", 
                                                                              ifelse(Victim == "In-Law", "In-Law", "placeholder")))))))))
+  relation_drop_edit$Victim[relation_drop_edit$Victim == 
+                              "Unknown"] <- "Stranger"
   relation_drop_edit$Perpetrator[relation_drop_edit$Type == "Close" & 
                                    relation_drop_edit$ps == "M"] <- "Boyfriend"
   relation_drop_edit$Perpetrator[relation_drop_edit$Type == "Close" & 
@@ -305,7 +305,8 @@ shinyServer(function(input, output){
       mutate(Relationship = c("A. Stranger", "B. Acquaintance", "C. Family", "D. Close", "E. Friend", "F. Work")) %>% 
       ggplot(aes(x = 1, y = Percentage)) +
       geom_bar(aes(fill = Relationship), position = 'fill', stat = "identity") + 
-      coord_polar(theta = 'y')
+      coord_polar(theta = 'y') + ggtitle('Types of Relationships between Perpetrators and Victims') +
+      scale_fill_brewer(palette = 'Accent')
   })
   
   
@@ -336,9 +337,10 @@ shinyServer(function(input, output){
     rl_spe_info() %>% 
       group_by(., Detail) %>% 
       summarise(., Total = sum(Total)) %>%
-      mutate(., Percentage = Total/sum(Total)) %>% 
-      ggplot(aes(x = Detail, y = Percentage)) +
-      geom_bar(aes(fill = Detail), stat = "identity")
+      top_n(12) %>%
+      ggplot(aes(x = reorder(Detail, Total), y = Total)) + ylab('Total Number of Incidence') +
+      geom_bar(aes(fill = Detail), stat = "identity", color = "#666666") + coord_flip() + 
+      scale_fill_brewer(palette = 'Set3') + ggtitle('Details of Relationship Type')
   })
   
 })

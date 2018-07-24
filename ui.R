@@ -1,7 +1,8 @@
 shinyUI(dashboardPage(
   dashboardHeader(title = "ShinyApp"),
   dashboardSidebar(
-    sidebarUserPanel("Mary (Xu Huang)",image = 'nycdsa_logo2.JPG'),
+    sidebarUserPanel("Mary (Xu Huang)", img(src='https://media.licdn.com/dms/image/C5603AQHV6peGoXDM3A/profile-displayphoto-shrink_200_200/0?e=1538006400&v=beta&t=uVDKV2B4v180R7VHSsO4FWN-hVGu8viJrxNaLwVUYcI',
+                                            width = "15%")), # image = 'xuhuang.JPG'),
     sidebarMenu(
       menuItem("Overview", tabName = "overview"),
       menuItem("Details", tabName = "details"), 
@@ -14,9 +15,9 @@ shinyUI(dashboardPage(
     tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "custom.css")),
     tabItems(
       tabItem(tabName = "overview", 
-              fluidRow(box(htmlOutput("state_top10"))),
-              # fluidRow(plotOutput("test"), width = 400, height = 400),
-              fluidRow(box(htmlOutput("overall")))),
+              fluidRow(column(6, plotOutput("overall")), 
+                       column(6, plotOutput("state_top10"))),
+              fluidRow()),
       tabItem(tabName = "details", 
               tabsetPanel(
                 tabPanel("Age", 
@@ -44,7 +45,7 @@ shinyUI(dashboardPage(
               fluidRow(column(6), 
                        column(3, fluidRow(selectInput("rl_selected", label = "Relationship Details:", 
                                                       choices = list("Family" = 1, "Close" = 2, "Friend" = 3, "Work" = 4, 
-                                                                     "Acquaintance" = 5, "Stranger" = 6), selected = 1)))))
+                                                                     "Acquaintance" = 5, "Stranger" = 6), selected = 6)))))
     )
   )
 ))

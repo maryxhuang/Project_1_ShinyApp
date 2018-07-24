@@ -7,11 +7,15 @@ library(ggthemes)
 library(maps)
 library(mapproj)
 library(datasets)
-library(reshape2)
+#library(reshape2)
+library(stringr)
 library(RColorBrewer)
 
-setwd("E:/E-Documents/NYC_Data_Science_Academy/Project_1_ShinyApp")
-ushr <- read.csv('./hr_cut.csv', stringsAsFactors=F)
+#setwd("E:/E-Documents/NYC_Data_Science_Academy/Project_1_ShinyApp/v8_0724")
+ushr <- read.csv('./homicide-reports.csv', stringsAsFactors=F)
+ushr <- ushr %>% 
+  select(., State, Year, Crime.Solved, Victim.Sex, Victim.Age, 
+         Perpetrator.Sex, Perpetrator.Age, Relationship, Weapon)
 
 # convert matrix to dataframe
 # state_stat <- data.frame(state.name = rownames(state.x77), state.x77)
